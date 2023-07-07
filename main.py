@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(m
 def capture_frame(url, folder, width, height):
     now = datetime.datetime.now()
     start_time = now.replace(hour=8, minute=1, second=0, microsecond=0)
-    end_time = now.replace(hour=21, minute=59, second=59, microsecond=999)
+    end_time = now.replace(hour=21, minute=59, second=0, microsecond=0)
 
     if now < start_time or now > end_time:
         logging.info("Skipping capture. Current time is outside the specified range.")
