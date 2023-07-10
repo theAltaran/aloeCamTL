@@ -22,7 +22,10 @@ ENV WEEKLY_VIDEO_THRESHOLD=350
 ENV MONTHLY_VIDEO_THRESHOLD=1500
 ENV YEARLY_VIDEO_THRESHOLD=18250
 ENV VIDEO_DELAY=1
-ENV SLEEP_DURATION=1005
+ENV WEEKLY_VIDEO_DELAY=0.14
+ENV MONTHLY_VIDEO_DELAY=0.03
+ENV YEARLY_VIDEO_DELAY=0.003
+ENV SLEEP_DURATION=980
 ENV IMAGE_FOLDER=/dockerData/aloeCamVideoRecorder/daily/images
 ENV VIDEO_FOLDER=/dockerData/aloeCamVideoRecorder/daily/videos
 ENV WEEKLY_VIDEO_FOLDER=/dockerData/aloeCamVideoRecorder/weekly/videos
@@ -33,6 +36,7 @@ ENV IMAGE_PREFIX=daily-
 ENV WEEKLY_FOLDER=/dockerData/aloeCamVideoRecorder/weekly/images
 ENV MONTHLY_FOLDER=/dockerData/aloeCamVideoRecorder/monthly/images
 ENV YEARLY_FOLDER=/dockerData/aloeCamVideoRecorder/yearly/images
+ENV AUDIO_FILE=/dockerData/aloeCamVideoRecorder/aloeTL.mp3
 
 
 
