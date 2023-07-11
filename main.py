@@ -7,7 +7,11 @@ import datetime
 from natsort import natsorted
 import glob
 import shutil
-import pygame
+from moviepy.editor import VideoFileClip, concatenate_videoclips, ImageClip
+
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,7 +49,7 @@ def capture_frame(url, folder, width, height):
         return False
 
 
-def create_video(image_folder, video_folder, threshold, delay, audio_file):
+def create_video(image_folder, video_folder, threshold, delay, audio_file, video_prefix, constant_image_path):
     images = [img for img in os.listdir(image_folder) if img.endswith(".jpg")]
     if len(images) < threshold:
         return
@@ -61,32 +65,37 @@ def create_video(image_folder, video_folder, threshold, delay, audio_file):
     video_filename = ""
     count = 1
     while True:
-        video_name = f"daily-aloeCam{count}"
-        video_filename = os.path.join(video_folder, f"{video_name}.avi")
+        video_name = f"{video_prefix}-aloeCam{count}"
+        video_filename = os.path.join(video_folder, f"{video_name}.mp4")
         if not os.path.exists(video_filename):
             break
         count += 1
 
-    fourcc = cv2.VideoWriter_fourcc(*"XVID")
-    video_writer = cv2.VideoWriter(video_filename, fourcc, 30, (width, height))
-
-    # Initialize Pygame mixer for audio playback
-    pygame.mixer.init()
-    pygame.mixer.music.load(audio_file)
-    pygame.mixer.music.play(-1)  # Play the audio in a loop
-
+    video_clips = []
     for image in images:
         img_path = os.path.join(image_folder, image)
-        frame = cv2.imread(img_path)
-        for _ in range(int(delay * 30)):  # 30 frames per second
-            video_writer.write(frame)
+        video_clip = VideoFileClip(img_path)
+        video_clips.append(video_clip.subclip(0, delay))
 
-    video_writer.release()
+    # Calculate the remaining duration for the last frame
+    remaining_duration = 59 - sum(clip.duration for clip in video_clips)
+
+    # Adjust the duration of the last frame to fit within the remaining time
+    if remaining_duration < 0:
+        last_clip = video_clips[-1]
+        last_clip = last_clip.resize(duration=last_clip.duration + remaining_duration)
+        video_clips[-1] = last_clip
+
+    # Add a constant image for the last frame if there is remaining duration
+    if remaining_duration > 0:
+        constant_image = ImageClip(constant_image_path).set_duration(remaining_duration)
+        video_clips.append(constant_image)
+
+    final_clip = concatenate_videoclips(video_clips)
+    final_clip.write_videofile(video_filename, codec="libx264", audio=audio_file)
+
     logging.info(f"Video saved as {video_filename}")
 
-    # Stop and quit Pygame mixer
-    pygame.mixer.music.stop()
-    pygame.mixer.quit()
 
 def main():
     # Get environment variables
@@ -102,6 +111,7 @@ def main():
     monthly_video_delay = float(os.getenv("MONTHLY_VIDEO_DELAY", 1.0))  # 1 second by default (as float)
     yearly_video_delay = float(os.getenv("YEARLY_VIDEO_DELAY", 1.0))  # 1 second by default (as float)
     audio_file = os.getenv("AUDIO_FILE")  # Path to the MP3 audio file
+    constant_image_path = os.getenv("CONSTANT_IMAGE_PATH")  # Path to the constant JPG image
 
     # Create the images and videos folders if they don't exist
     os.makedirs(image_folder, exist_ok=True)
@@ -128,48 +138,56 @@ def main():
             f"Total images - Daily: {daily_image_count}/{threshold}, Weekly: {weekly_image_count}/{weekly_video_threshold}, Monthly: {monthly_image_count}/{monthly_video_threshold}, Yearly: {yearly_image_count}/{yearly_video_threshold}"
         )
 
-        create_video(image_folder, video_folder, threshold, delay, audio_file)
+        # Check if the daily video threshold is met and create the video
+        if daily_image_count >= threshold:
+            create_video(image_folder, video_folder, threshold, delay, audio_file, "daily", constant_image_path)
 
-        # Move the captured images and check thresholds
+        # Move the captured images and check thresholds after creating the video
         if daily_image_count >= threshold:
             # Move the captured images to weekly folder after creating daily video
+            logging.info("Moving files to weekly folder...")
             weekly_folder = os.getenv("WEEKLY_FOLDER")
             for image in os.listdir(image_folder):
                 img_path = os.path.join(image_folder, image)
                 dst_path = os.path.join(weekly_folder, image)
                 shutil.move(img_path, dst_path)
+            logging.info("Files moved to weekly folder.")
 
             # Check if the weekly video threshold is met
             weekly_images = glob.glob(os.path.join(weekly_folder, "*.jpg"))
             if len(weekly_images) >= weekly_video_threshold:
                 logging.info(f"Weekly video threshold met. Proceed to create weekly video.")
-                create_video(weekly_folder, video_folder, weekly_video_threshold, weekly_video_delay, audio_file)
+                create_video(weekly_folder, video_folder, weekly_video_threshold, weekly_video_delay, audio_file, "weekly", constant_image_path)
 
             # Move the captured images to monthly folder after creating weekly video
+            logging.info("Moving files to monthly folder...")
             monthly_folder = os.getenv("MONTHLY_FOLDER")
             for image in weekly_images:
                 img_path = os.path.join(weekly_folder, image)
                 dst_path = os.path.join(monthly_folder, image)
                 shutil.move(img_path, dst_path)
+            logging.info("Files moved to monthly folder.")
 
             # Check if the monthly video threshold is met
             monthly_images = glob.glob(os.path.join(monthly_folder, "*.jpg"))
             if len(monthly_images) >= monthly_video_threshold:
                 logging.info(f"Monthly video threshold met. Proceed to create monthly video.")
-                create_video(monthly_folder, video_folder, monthly_video_threshold, monthly_video_delay, audio_file)
+                create_video(monthly_folder, video_folder, monthly_video_threshold, monthly_video_delay, audio_file, "monthly", constant_image_path)
 
             # Move the captured images to yearly folder after creating monthly video
+            logging.info("Moving files to yearly folder...")
             yearly_folder = os.getenv("YEARLY_FOLDER")
             for image in monthly_images:
                 img_path = os.path.join(monthly_folder, image)
                 dst_path = os.path.join(yearly_folder, image)
                 shutil.move(img_path, dst_path)
+            logging.info("Files moved to yearly folder.")
 
             # Check if the yearly video threshold is met
             yearly_images = glob.glob(os.path.join(yearly_folder, "*.jpg"))
             if len(yearly_images) >= yearly_video_threshold:
                 logging.info(f"Yearly video threshold met. Proceed to create yearly video.")
-                create_video(yearly_folder, video_folder, yearly_video_threshold, yearly_video_delay, audio_file)
+                create_video(yearly_folder, video_folder, yearly_video_threshold, yearly_video_delay, audio_file, "yearly", constant_image_path)
 
         logging.info(f"Waiting for {sleep_duration} seconds...")
         time.sleep(sleep_duration)  # Sleep for the specified duration
@@ -177,4 +195,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
