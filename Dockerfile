@@ -27,7 +27,7 @@ ENV VIDEO_THRESHOLD=50
 ENV WEEKLY_VIDEO_THRESHOLD=350
 ENV MONTHLY_VIDEO_THRESHOLD=1500
 ENV YEARLY_VIDEO_THRESHOLD=18250
-# How long each frame takes in a particular frames.  In Seconds.
+# How long each frame shows in a video. In Seconds.
 ENV VIDEO_DELAY=1             
 ENV WEEKLY_VIDEO_DELAY=0.143
 ENV MONTHLY_VIDEO_DELAY=0.0334
@@ -39,7 +39,7 @@ ENV IMAGE_FOLDER=/data/daily
 ENV WEEKLY_FOLDER=/data/weekly
 ENV MONTHLY_FOLDER=/data/monthly
 ENV YEARLY_FOLDER=/data/yearly
-
+# Where to store finished videos
 ENV VIDEO_FOLDER=/data/videos/daily
 ENV WEEKLY_VIDEO_FOLDER=/data/videos/weekly
 ENV MONTHLY_VIDEO_FOLDER=/data/videos/monthly
